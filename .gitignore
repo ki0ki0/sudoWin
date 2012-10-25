@@ -1,0 +1,9 @@
+# git ignore file
+x64*/
+Win32*/
+Debug*/
+Release*/
+_ReSharper.sudoWin*/
+ipch*/
+*.*sdf
+*.user
