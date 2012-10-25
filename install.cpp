@@ -18,17 +18,6 @@ Installer::InstallStatus Installer::Execute()
 		result = inst->ExecuteInstall();
 	}
 
-	if (result == isPrivileges)
-	{
-		if (isInstalled)
-			::MessageBox( NULL, c_szMBUsageInfo, c_szMBTitle, MB_ICONINFORMATION );
-		else
-			::MessageBox( NULL, c_szMBInstallInfo, c_szMBTitle, MB_ICONINFORMATION );
-	}
-	else if (result == isAlready)
-		::MessageBox( NULL, c_szMBAlready, c_szMBTitle, MB_ICONINFORMATION );
-	
-
 	return result;
 }
 
@@ -46,9 +35,6 @@ Installer::InstallStatus Installer::Install()
 		result = inst->ExecuteInstall();
 	}
 
-	if (result == isPrivileges)
-		::MessageBox( NULL, c_szMBInstallInfo, c_szMBTitle, MB_ICONINFORMATION );
-
 	return result;
 }
 
@@ -65,9 +51,6 @@ Installer::InstallStatus Installer::Uninstall()
 	{
 		result = inst->ExecuteUninstall();
 	}
-
-	if (result == isPrivileges)
-		::MessageBox( NULL, c_szMBUsageInfo, c_szMBTitle, MB_ICONINFORMATION );
 
 	return result;
 }
@@ -118,27 +101,81 @@ Installer::InstallStatus Installer::ExecuteInstall()
 	} 
 	while ((dwRes == dwLen) && (::GetLastError() == ERROR_INSUFFICIENT_BUFFER));
 
+	InstallStatus result = isUnknown;
 	try
 	{
-		return CreateTask( sSelfPath );
+		result = CreateTask( sSelfPath );
 	}
 	catch(...)
 	{
-		return isUnknown;
+		result = isUnknown;
 	}
+
+	CAtlString message;
+	CAtlString title;
+	title.LoadString(IDS_TITLE_INSTALATION);
+	if (result == isInstalled)
+	{
+		CAtlString platform;
+#ifdef _WIN64
+		platform.LoadString(IDS_X64);
+#else
+		platform.LoadString(IDS_X86);
+#endif
+		message.Format(IDS_INSTALLED, platform);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+	else if (result == isPrivileges)
+	{
+		message.LoadString(IDS_INSTALATION_INFO);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+	else if (result == isAlready)
+	{
+		message.LoadString(IDS_ALREADY);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+	return result;
 }
 
 Installer::InstallStatus Installer::ExecuteUninstall()
 {
+	InstallStatus result = isUnknown;
+
 	m_hr = m_pFolder->DeleteTask(_bstr_t(TASK_NAME), 0);
 	if (SUCCEEDED(m_hr))
 	{
-		::MessageBox( NULL, c_szMBUninstallSuccess, c_szMBTitle, MB_ICONINFORMATION );
-		return isUninstalled; 
+		result = isUninstalled; 
 	}
 	if (m_hr == E_ACCESSDENIED)
-		return isPrivileges;
-	return isUnknown;
+		result = isPrivileges;
+
+	CAtlString message;
+	CAtlString title;
+	title.LoadString(IDS_TITLE_INSTALATION);
+	if (result == isUninstalled)
+	{
+		CAtlString platform;
+#ifdef _WIN64
+		platform.LoadString(IDS_X64);
+#else
+		platform.LoadString(IDS_X86);
+#endif
+		message.Format(IDS_UNINSTALLED, platform);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+	else if (result == isPrivileges)
+	{
+		message.LoadString(IDS_UNINSTALL_USAGE_INFO);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+	else if (result == isAlready)
+	{
+		message.LoadString(IDS_ALREADY);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	}
+
+	return result;
 }
 
 Installer::InstallStatus Installer::CreateTask(CAtlString &sSelfPath)
@@ -191,10 +228,7 @@ Installer::InstallStatus Installer::CreateTask(CAtlString &sSelfPath)
 	m_hr = m_pFolder->RegisterTaskDefinition( _bstr_t(TASK_NAME), pDefinition, TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
 		TASK_LOGON_INTERACTIVE_TOKEN, _variant_t(L""), &pRegisteredTask);
 	if (SUCCEEDED(m_hr))
-	{
-		::MessageBox( NULL, c_szMBInstallSuccess, c_szMBTitle, MB_ICONINFORMATION );
 		return isInstalled; 
-	}
 	if (m_hr == E_ACCESSDENIED)
 		return isPrivileges;
 

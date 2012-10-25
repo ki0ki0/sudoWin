@@ -92,30 +92,6 @@ int NewCmd(LPTSTR lpCmdLine)
 
     AttachConsole(ATTACH_PARENT_PROCESS);
 
-    //HANDLE hDeviceIn = ::GetStdHandle(STD_INPUT_HANDLE);
-    //SetHandleInformation(hDeviceIn, HANDLE_FLAG_INHERIT, 0);
-
-    //HANDLE hDeviceOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    //SetHandleInformation(hDeviceOut, HANDLE_FLAG_INHERIT, 0);
-
-    //HANDLE hDeviceErr = GetStdHandle(STD_ERROR_HANDLE);
-    //SetHandleInformation(hDeviceErr, HANDLE_FLAG_INHERIT, 0);
-
-    //lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecIn, REG_BINARY, &hDeviceIn, sizeof(hDeviceIn));
-    //ATLASSERT( lStatus == ERROR_SUCCESS );
-    //if ( lStatus != ERROR_SUCCESS )
-    //    return ecRegSet;
-    //
-    //lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecOut, REG_BINARY, &hDeviceOut, sizeof(hDeviceOut));
-    //ATLASSERT( lStatus == ERROR_SUCCESS );
-    //if ( lStatus != ERROR_SUCCESS )
-    //    return ecRegSet;
-    //    
-    //lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecErr, REG_BINARY, &hDeviceErr, sizeof(hDeviceErr));
-    //ATLASSERT( lStatus == ERROR_SUCCESS );
-    //if ( lStatus != ERROR_SUCCESS )
-    //    return ecRegSet;
-
     DWORD dwProcessId = ::GetCurrentProcessId();
 
     lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecId, REG_BINARY, &dwProcessId, sizeof(dwProcessId));
@@ -202,45 +178,6 @@ int ExecuteCmd()
     if ( lStatus != ERROR_SUCCESS )
         return ecRegGet;
     sDir.ReleaseBuffer();
-
-    /* NoProcess waiting
-
-    HINSTANCE hInstanceNew = ::ShellExecute( NULL, _T("open"), sApp.GetString(), sArgs.GetString(), sDir.GetString(), SW_SHOWDEFAULT );
-    ATLASSERT( (int)hInstanceNew > 32 );
-    if ( (int)hInstanceNew <= 32 )
-    return ecRegSHExec;*/
-
-    /*
-    // Wait for process exit
-    SHELLEXECUTEINFO execInfo = {sizeof(SHELLEXECUTEINFO)};
-    execInfo.fMask = SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
-    execInfo.lpVerb = _T("open");
-    execInfo.lpFile = sApp.GetString();
-    execInfo.lpParameters = sArgs.GetString();
-    execInfo.lpDirectory = sDir.GetString();
-    execInfo.nShow = SW_SHOWDEFAULT;
-
-
-    if (::ShellExecuteEx( &execInfo) == FALSE)
-    return ecRegSHExec;
-    ATLASSERT( (int)execInfo.hInstApp > 32 );
-    if ( (int)execInfo.hInstApp <= 32 )
-    return ecRegSHExec;
-
-    if (execInfo.hProcess != NULL)
-    ::WaitForSingleObject(execInfo.hProcess, INFINITE);
-    */
-
-    //HANDLE hIn = NULL;
-    //HANDLE hOut = NULL;
-    //HANDLE hErr = NULL;
-
-    //dwLen = sizeof(hIn);
-    //lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecIn, RRF_RT_REG_BINARY, &dwType, &hIn, &dwLen );
-    //dwLen = sizeof(hOut);
-    //lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecOut, RRF_RT_REG_BINARY, &dwType, &hOut, &dwLen );
-    //dwLen = sizeof(hErr);
-    //lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecErr, RRF_RT_REG_BINARY, &dwType, &hErr, &dwLen );
 
     DWORD dwProcessId = 0;
     dwLen = sizeof(dwProcessId);
