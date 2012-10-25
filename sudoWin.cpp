@@ -100,13 +100,13 @@ int NewCmd(LPTSTR lpCmdLine)
         return ecRegSet;
 
     CString strEvent;
-    strEvent.Format(_T("sudoWin%d"), dwProcessId);
-    
-    CHandle hEvent( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
+    strEvent.Format(c_szEventRun, dwProcessId);
+    CHandle hEventRun( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
+	::ResetEvent( hEventRun);
 
-	// todo: add "runned" event, and timeout for it
-
-    ::ResetEvent( hEvent);
+	strEvent.Format(c_szEventExit, dwProcessId);
+	CHandle hEventExit( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
+	::ResetEvent( hEventExit);
 
     CAtlString sApp = _T("schtasks /run /TN \"") TASK_NAME _T("\"");
 
@@ -121,7 +121,10 @@ int NewCmd(LPTSTR lpCmdLine)
     ::CloseHandle( process_info.hProcess );
     ::CloseHandle( process_info.hThread );
 
-    ::WaitForSingleObject(hEvent, INFINITE);
+	if (::WaitForSingleObject(hEventRun, c_dwRunTimeout) != WAIT_OBJECT_0)
+		return ecUnknown;
+
+    ::WaitForSingleObject(hEventExit, INFINITE);
 
     return ecNoError;
 }
@@ -226,6 +229,15 @@ int ExecuteCmd()
     if (sDir.GetLength() > 0)
         lpDir = sDir.GetString();
 
+	CString strEvent;
+    strEvent.Format(c_szEventRun, dwProcessId);
+    
+	CHandle hEventRun (::OpenEvent( EVENT_MODIFY_STATE, FALSE, strEvent));
+	if (hEventRun.m_h)
+    {
+        ::SetEvent(hEventRun);
+    }
+
     BOOL bStatus = ::CreateProcess( NULL, sApp.GetBuffer(MAX_PATH), NULL, NULL, TRUE, 0, NULL, lpDir, &startup_info, &process_info );
     ATLASSERT( SUCCEEDED( bStatus ));
     if ( FAILED( bStatus ))
@@ -240,14 +252,12 @@ int ExecuteCmd()
     if (bConsole)
 	    cout << endl;
 
-    CString strEvent;
-    strEvent.Format(_T("sudoWin%d"), dwProcessId);
+    strEvent.Format(c_szEventExit, dwProcessId);
     
-    HANDLE hEvent = ::OpenEvent( EVENT_MODIFY_STATE, FALSE, strEvent);
-    if (hEvent)
+	CHandle hEventExit (::OpenEvent( EVENT_MODIFY_STATE, FALSE, strEvent));
+	if (hEventExit.m_h)
     {
-        ::SetEvent(hEvent);
-        ::CloseHandle(hEvent);
+        ::SetEvent(hEventExit);
     }
 
     NewCmd( _T("") );

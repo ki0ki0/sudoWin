@@ -17,6 +17,11 @@ static LPCTSTR c_szExecOut = _T("Out");
 static LPCTSTR c_szExecErr = _T("Err");
 static LPCTSTR c_szExecId = _T("Id");
 
+static LPCTSTR c_szEventRun = _T("sudoWin%dRUN");
+static LPCTSTR c_szEventExit = _T("sudoWin%dEXIT");
+
+static DWORD c_dwRunTimeout = 1000;
+
 enum enErrorCodes
 {
 	ecNoError = 0,
