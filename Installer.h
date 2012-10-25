@@ -1,3 +1,9 @@
+#ifdef _WIN64
+#define TASK_NAME	_T("sudoWin64")
+#else
+#define TASK_NAME	_T("sudoWin")
+#endif
+
 class Installer
 {
 public:

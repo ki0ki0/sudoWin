@@ -1,21 +1,21 @@
 #include "stdafx.h"
 
 #include "installer.h"
-#include "sudowin.h"
+#include "resource.h"
 
 Installer::InstallStatus Installer::Execute()
 {
 	InstallStatus result;
 
-	Installer *inst = new Installer();
-	BOOL isInstalled = inst->IsTaskExist();
+	Installer inst;
+	BOOL isInstalled = inst.IsTaskExist();
 	if (isInstalled)
 	{
-		result = inst->ExecuteUninstall();
+		result = inst.ExecuteUninstall();
 	}
 	else
 	{
-		result = inst->ExecuteInstall();
+		result = inst.ExecuteInstall();
 	}
 
 	return result;
@@ -25,14 +25,14 @@ Installer::InstallStatus Installer::Install()
 {
 	InstallStatus result;
 
-	Installer *inst = new Installer();
-	if (inst->IsTaskExist())
+	Installer inst;
+	if (inst.IsTaskExist())
 	{
 		result = isAlready;
 	}
 	else
 	{
-		result = inst->ExecuteInstall();
+		result = inst.ExecuteInstall();
 	}
 
 	return result;
@@ -42,14 +42,14 @@ Installer::InstallStatus Installer::Uninstall()
 {
 	InstallStatus result;
 
-	Installer *inst = new Installer();
-	if (inst->IsTaskExist() == FALSE)
+	Installer inst;
+	if (inst.IsTaskExist() == FALSE)
 	{
 		result = isAlready;
 	}
 	else
 	{
-		result = inst->ExecuteUninstall();
+		result = inst.ExecuteUninstall();
 	}
 
 	return result;
@@ -58,7 +58,7 @@ Installer::InstallStatus Installer::Uninstall()
 
 void Installer::ThrowOnError()
 {
-	if (FAILED(m_hr))
+	if (FAILED(m_hr)) // todo: check specific errors
 		throw "error";
 }
 

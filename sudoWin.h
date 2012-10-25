@@ -8,15 +8,6 @@
 #define TASK_NAME	_T("sudoWin")
 #endif
 
-static LPCTSTR c_szRegPath = _T("Software\\sudoWin");
-static LPCTSTR c_szExecApp = _T("App");
-static LPCTSTR c_szExecArgs = _T("Args");
-static LPCTSTR c_szExecDir = _T("Dir");
-static LPCTSTR c_szExecIn = _T("In");
-static LPCTSTR c_szExecOut = _T("Out");
-static LPCTSTR c_szExecErr = _T("Err");
-static LPCTSTR c_szExecId = _T("Id");
-
 static LPCTSTR c_szEventRun = _T("sudoWin%dRUN");
 static LPCTSTR c_szEventExit = _T("sudoWin%dEXIT");
 

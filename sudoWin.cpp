@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "installer.h"
+#include "params.h"
 
 using namespace std;
 
@@ -60,45 +61,9 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
 
 int NewCmd(LPTSTR lpCmdLine)
 {
-    LPTSTR lpArgs = PathGetArgs( lpCmdLine );
-    PathRemoveArgs( lpCmdLine );
+	Params::Save(lpCmdLine);
 
-    CAtlString sDir;
-
-    if (( lpCmdLine == NULL ) || ( lpCmdLine[0] == 0 ))
-        return ecUnknown;
-
-    DWORD dwLen = 0;
-    dwLen = GetCurrentDirectory( dwLen, NULL );
-    sDir.GetBuffer( dwLen );
-    dwLen = GetCurrentDirectory( dwLen, sDir.GetBuffer( dwLen ));
-    sDir.ReleaseBuffer( dwLen );
-
-    LSTATUS lStatus;
-    lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecApp, REG_SZ, lpCmdLine, ( _tcslen(lpCmdLine) + 1 ) * sizeof( lpCmdLine[0] ));
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegSet;
-
-    lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecArgs, REG_SZ, lpArgs, ( _tcslen(lpArgs) + 1 ) * sizeof( lpArgs[0] ));
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegSet;
-
-    lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecDir, REG_SZ, sDir.GetString(), ( sDir.GetLength() + 1 ) * sizeof( sDir[0] ));
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegSet;
-
-    AttachConsole(ATTACH_PARENT_PROCESS);
-
-    DWORD dwProcessId = ::GetCurrentProcessId();
-
-    lStatus = ::RegSetKeyValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecId, REG_BINARY, &dwProcessId, sizeof(dwProcessId));
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegSet;
-
+	DWORD dwProcessId = ::GetCurrentProcessId();
     CString strEvent;
     strEvent.Format(c_szEventRun, dwProcessId);
     CHandle hEventRun( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
@@ -131,60 +96,10 @@ int NewCmd(LPTSTR lpCmdLine)
 
 int ExecuteCmd()
 {
-    DWORD dwType;
-    DWORD dwLen = 0;
+    CAtlString sDir, sApp, sArgs;
+	DWORD dwProcessId;
 
-    LSTATUS lStatus;
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecApp, RRF_RT_REG_SZ, &dwType, NULL, &dwLen );
-    if ( lStatus != ERROR_SUCCESS )
-    {
-        return Installer::Install();
-    }
-
-    CAtlString sApp;
-    sApp.GetBuffer( dwLen / sizeof(TCHAR) + 1 );
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecApp, RRF_RT_REG_SZ, &dwType, sApp.GetBuffer(), &dwLen );
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-    {
-        return Installer::Install();
-    }
-    sApp.ReleaseBuffer();
-
-    if ( !sApp[0] )
-    {
-		return Installer::Install();
-    }
-
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecArgs, RRF_RT_REG_SZ, &dwType, NULL, &dwLen );
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegGet;
-
-    CAtlString sArgs;
-    sArgs.GetBuffer( dwLen / sizeof(TCHAR) + 1 );
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecArgs, RRF_RT_REG_SZ, &dwType, sArgs.GetBuffer(), &dwLen );
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegGet;
-    sArgs.ReleaseBuffer();
-
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecDir, RRF_RT_REG_SZ, &dwType, NULL, &dwLen );
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegGet;
-
-    CAtlString sDir;
-    sDir.GetBuffer( dwLen / sizeof(TCHAR) + 1 );
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecDir, RRF_RT_REG_SZ, &dwType, sDir.GetBuffer(), &dwLen );
-    ATLASSERT( lStatus == ERROR_SUCCESS );
-    if ( lStatus != ERROR_SUCCESS )
-        return ecRegGet;
-    sDir.ReleaseBuffer();
-
-    DWORD dwProcessId = 0;
-    dwLen = sizeof(dwProcessId);
-    lStatus = ::RegGetValue( HKEY_CURRENT_USER, c_szRegPath, c_szExecId, RRF_RT_REG_BINARY, &dwType, &dwProcessId, &dwLen );
+	Params::Load( sDir, sApp, sArgs, dwProcessId);
 
     AttachConsole(dwProcessId);
 
@@ -260,8 +175,8 @@ int ExecuteCmd()
         ::SetEvent(hEventExit);
     }
 
-    NewCmd( _T("") );
-
+	Params::Clear();
+    
     return ecNoError;
 }
 
