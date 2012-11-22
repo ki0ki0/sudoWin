@@ -1,7 +1,7 @@
 class RegValue
 {
 public:
-	RegValue(HKEY hkey, LPCTSTR lpSubKey);
+	RegValue(HKEY hkey, LPCTSTR lpSubKey, BOOL bAllowWrite);
 	CAtlString GetString(LPCTSTR lpValue);
 	DWORD GetDword(LPCTSTR lpValue);
 	void SetString(LPCTSTR lpValue, LPCTSTR lpText, DWORD dwLen);

@@ -1,3 +1,5 @@
+#include "ComInitializer.h"
+
 #ifdef _WIN64
 #define TASK_NAME	_T("sudoWin64")
 #else
@@ -9,7 +11,7 @@ class Installer
 public:
 	enum InstallStatus
 	{
-		isUnknown,
+		isUnknown = 0,
 		isCanceled,
 		isPrivileges,
 		isInstalled,
@@ -17,22 +19,24 @@ public:
 		isAlready
 	};
 
-	static InstallStatus Execute();
-	static InstallStatus Install();
-	static InstallStatus Uninstall();
+	static InstallStatus Execute(ComInitializer &comObject);
+	static InstallStatus Install(ComInitializer &comObject);
+	static InstallStatus Uninstall(ComInitializer &comObject);
 private:
+	ComInitializer &m_comObj;
 	HRESULT m_hr;
 	CComPtr<ITaskService> m_pService;
 	CComPtr<ITaskFolder> m_pFolder;
 
-	Installer();
-	~Installer();
+	Installer(ComInitializer &comObject);
 	void ThrowOnError();
 
 	BOOL IsTaskExist();
 
-	InstallStatus ExecuteInstall();
-	InstallStatus ExecuteUninstall();
+	void ExecuteInstall();
+	void ExecuteUninstall();
 
-	InstallStatus CreateTask(CAtlString &sSelfPath);	
+	void CreateTask(CAtlString &sSelfPath);	
+
+	static InstallStatus ProcessError( int code, BOOL isInstalled);
 };

@@ -55,7 +55,9 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
 			return ExecuteCmd();
 	}
 
-    return Installer::Execute();
+	ComInitializer comObj;
+
+    return Installer::Execute(comObj);
 }
 
 
@@ -80,8 +82,7 @@ int NewCmd(LPTSTR lpCmdLine)
     PROCESS_INFORMATION process_info = {0};
 
     BOOL bStatus = ::CreateProcess( NULL, sApp.GetBuffer(MAX_PATH), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup_info, &process_info );
-    ATLASSERT( SUCCEEDED( bStatus ));
-    if ( FAILED( bStatus ))
+    if ( bStatus == FALSE)
         return ecRunTask;
     ::CloseHandle( process_info.hProcess );
     ::CloseHandle( process_info.hThread );
@@ -154,8 +155,7 @@ int ExecuteCmd()
     }
 
     BOOL bStatus = ::CreateProcess( NULL, sApp.GetBuffer(MAX_PATH), NULL, NULL, TRUE, 0, NULL, lpDir, &startup_info, &process_info );
-    ATLASSERT( SUCCEEDED( bStatus ));
-    if ( FAILED( bStatus ))
+    if ( bStatus == FALSE)
         return ecRegSHExec;
 
     if (process_info.hProcess != NULL)

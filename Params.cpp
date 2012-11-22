@@ -6,7 +6,7 @@
 void Params::Save( LPTSTR lpCmdLine)
 {
 	if (( lpCmdLine == NULL ))
-        throw "Invalid argument";
+		throw ERROR_INVALID_DATA ;
 
 	LPTSTR lpArgs = PathGetArgs( lpCmdLine );
     PathRemoveArgs( lpCmdLine );
@@ -18,7 +18,7 @@ void Params::Save( LPTSTR lpCmdLine)
     dwLen = GetCurrentDirectory( dwLen, sDir.GetBuffer( dwLen ));
     sDir.ReleaseBuffer( dwLen );
 
-	RegValue reg(HKEY_CURRENT_USER, c_szRegPath);
+	RegValue reg(HKEY_CURRENT_USER, c_szRegPath, true);
 
 	reg.SetString( c_szExecApp, lpCmdLine, ( _tcslen(lpCmdLine) + 1 ) * sizeof( lpCmdLine[0] ));
     reg.SetString( c_szExecArgs, lpArgs, ( _tcslen(lpArgs) + 1 ) * sizeof( lpArgs[0] ));
@@ -29,9 +29,9 @@ void Params::Save( LPTSTR lpCmdLine)
 	reg.SetDword( c_szExecId, dwProcessId);
 }
 
-void Params::Load( CAtlString sDir, CAtlString sApp, CAtlString sArgs, DWORD &dwProcessId)
+void Params::Load( CAtlString &sDir, CAtlString &sApp, CAtlString &sArgs, DWORD &dwProcessId)
 {
-	RegValue reg(HKEY_CURRENT_USER, c_szRegPath);
+	RegValue reg(HKEY_CURRENT_USER, c_szRegPath, false);
 
 	sApp = reg.GetString( c_szExecApp);
 	sArgs = reg.GetString( c_szExecArgs);
@@ -41,7 +41,7 @@ void Params::Load( CAtlString sDir, CAtlString sApp, CAtlString sArgs, DWORD &dw
 
 void Params::Clear()
 {
-	RegValue reg(HKEY_CURRENT_USER, c_szRegPath);
+	RegValue reg(HKEY_CURRENT_USER, c_szRegPath, true);
 
 	reg.Delete( c_szExecApp);
     reg.Delete( c_szExecArgs);

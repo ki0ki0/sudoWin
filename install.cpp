@@ -3,70 +3,120 @@
 #include "installer.h"
 #include "resource.h"
 
-Installer::InstallStatus Installer::Execute()
+Installer::InstallStatus Installer::Execute(ComInitializer &comObject)
 {
-	InstallStatus result;
+	InstallStatus result = isUnknown;
 
-	Installer inst;
-	BOOL isInstalled = inst.IsTaskExist();
-	if (isInstalled)
+	Installer inst(comObject);
+	BOOL bIsInstalled = inst.IsTaskExist();
+	try
 	{
-		result = inst.ExecuteUninstall();
+		if (bIsInstalled)
+		{
+			inst.ExecuteUninstall();
+			result = InstallStatus::isUninstalled;
+		}
+		else
+		{
+			inst.ExecuteInstall();
+			result = InstallStatus::isInstalled;
+		}
 	}
-	else
+	catch (long code)
 	{
-		result = inst.ExecuteInstall();
+		result = ProcessError(code, bIsInstalled);
 	}
-
 	return result;
 }
 
-Installer::InstallStatus Installer::Install()
+Installer::InstallStatus Installer::Install(ComInitializer &comObject)
 {
 	InstallStatus result;
 
-	Installer inst;
+	Installer inst(comObject);
 	if (inst.IsTaskExist())
 	{
-		result = isAlready;
+		ProcessError( ERROR_INVALID_FUNCTION, true);
+		result = InstallStatus::isAlready;
 	}
 	else
 	{
-		result = inst.ExecuteInstall();
+		try
+		{
+			inst.ExecuteInstall();
+			result = InstallStatus::isInstalled;
+		}
+		catch (long code)
+		{
+			result = ProcessError(code, false);
+		}
 	}
 
 	return result;
 }
 
-Installer::InstallStatus Installer::Uninstall()
+Installer::InstallStatus Installer::Uninstall(ComInitializer &comObject)
 {
 	InstallStatus result;
 
-	Installer inst;
+	Installer inst(comObject);
 	if (inst.IsTaskExist() == FALSE)
 	{
+		ProcessError( ERROR_INVALID_FUNCTION, false);
 		result = isAlready;
 	}
 	else
 	{
-		result = inst.ExecuteUninstall();
+		try
+		{
+			inst.ExecuteUninstall();
+			result = InstallStatus::isUninstalled;
+		}
+		catch (long code)
+		{
+			result = ProcessError(code, true);
+		}
+
 	}
 
 	return result;
 }
 
+Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled)
+{
+	Installer::InstallStatus result = InstallStatus::isUnknown;
+	CAtlString message;
+	CAtlString title;
+	switch (code)
+	{
+	case 1:
+		title.LoadString(IDS_TITLE_INSTALATION);
+		message.LoadString(IDS_ALREADY);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+		break;
+	case 5:	
+		title.LoadString(IDS_TITLE_INSTALATION);
+		if (isInstalled)
+			message.LoadString(IDS_UNINSTALL_USAGE_INFO);
+		else
+			message.LoadString(IDS_INSTALATION_INFO);
+		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+		result = InstallStatus::isPrivileges;
+		break;
+	default:
+		result = InstallStatus::isUnknown;
+		break;
+	}
+	return result;
+}
 
 void Installer::ThrowOnError()
 {
-	if (FAILED(m_hr)) // todo: check specific errors
-		throw "error";
+	m_comObj.ThrowOnError(m_hr);
 }
 
-Installer::Installer()
+Installer::Installer(ComInitializer &com):m_comObj(com)
 {
-	m_hr = ::CoInitializeEx( NULL, COINIT_APARTMENTTHREADED );
-	ThrowOnError();
-
 	m_hr = CoCreateInstance( CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&m_pService );  
 	ThrowOnError();
 
@@ -77,11 +127,6 @@ Installer::Installer()
 	ThrowOnError();
 }
 
-Installer::~Installer()
-{
-	::CoUninitialize();
-}
-
 BOOL Installer::IsTaskExist()
 {
 	CComPtr<IRegisteredTask> pTask;
@@ -90,7 +135,7 @@ BOOL Installer::IsTaskExist()
 	return (pTask != NULL);
 }
 
-Installer::InstallStatus Installer::ExecuteInstall()
+void Installer::ExecuteInstall()
 {
 	DWORD dwLen = MAX_PATH;
 	CAtlString sSelfPath;
@@ -101,84 +146,42 @@ Installer::InstallStatus Installer::ExecuteInstall()
 	} 
 	while ((dwRes == dwLen) && (::GetLastError() == ERROR_INSUFFICIENT_BUFFER));
 
-	InstallStatus result = isUnknown;
-	try
-	{
-		result = CreateTask( sSelfPath );
-	}
-	catch(...)
-	{
-		result = isUnknown;
-	}
+	CreateTask( sSelfPath );
 
 	CAtlString message;
 	CAtlString title;
 	title.LoadString(IDS_TITLE_INSTALATION);
-	if (result == isInstalled)
-	{
-		CAtlString platform;
+	CAtlString platform;
 #ifdef _WIN64
-		platform.LoadString(IDS_X64);
+	platform.LoadString(IDS_X64);
 #else
-		platform.LoadString(IDS_X86);
+	platform.LoadString(IDS_X86);
 #endif
-		message.Format(IDS_INSTALLED, platform);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-	else if (result == isPrivileges)
-	{
-		message.LoadString(IDS_INSTALATION_INFO);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-	else if (result == isAlready)
-	{
-		message.LoadString(IDS_ALREADY);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-	return result;
+	message.Format(IDS_INSTALLED, platform);
+	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
 }
 
-Installer::InstallStatus Installer::ExecuteUninstall()
+void Installer::ExecuteUninstall()
 {
 	InstallStatus result = isUnknown;
 
 	m_hr = m_pFolder->DeleteTask(_bstr_t(TASK_NAME), 0);
-	if (SUCCEEDED(m_hr))
-	{
-		result = isUninstalled; 
-	}
-	if (m_hr == E_ACCESSDENIED)
-		result = isPrivileges;
+	ThrowOnError();
 
 	CAtlString message;
 	CAtlString title;
 	title.LoadString(IDS_TITLE_INSTALATION);
-	if (result == isUninstalled)
-	{
-		CAtlString platform;
+	CAtlString platform;
 #ifdef _WIN64
-		platform.LoadString(IDS_X64);
+	platform.LoadString(IDS_X64);
 #else
-		platform.LoadString(IDS_X86);
+	platform.LoadString(IDS_X86);
 #endif
-		message.Format(IDS_UNINSTALLED, platform);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-	else if (result == isPrivileges)
-	{
-		message.LoadString(IDS_UNINSTALL_USAGE_INFO);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-	else if (result == isAlready)
-	{
-		message.LoadString(IDS_ALREADY);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
-	}
-
-	return result;
+	message.Format(IDS_UNINSTALLED, platform);
+	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
 }
 
-Installer::InstallStatus Installer::CreateTask(CAtlString &sSelfPath)
+void Installer::CreateTask(CAtlString &sSelfPath)
 {
 	CComPtr<ITaskDefinition> pDefinition;
 	m_hr = m_pService->NewTask(0, &pDefinition);
@@ -227,10 +230,5 @@ Installer::InstallStatus Installer::CreateTask(CAtlString &sSelfPath)
 	CComPtr<IRegisteredTask> pRegisteredTask;
 	m_hr = m_pFolder->RegisterTaskDefinition( _bstr_t(TASK_NAME), pDefinition, TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
 		TASK_LOGON_INTERACTIVE_TOKEN, _variant_t(L""), &pRegisteredTask);
-	if (SUCCEEDED(m_hr))
-		return isInstalled; 
-	if (m_hr == E_ACCESSDENIED)
-		return isPrivileges;
-
-	return isUnknown;
+	ThrowOnError();
 }
