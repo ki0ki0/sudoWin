@@ -5,7 +5,7 @@
 
 Installer::InstallStatus Installer::Execute(ComInitializer &comObject)
 {
-	InstallStatus result = isUnknown;
+	long errorCode = ERROR_SUCCESS;
 
 	Installer inst(comObject);
 	BOOL bIsInstalled = inst.IsTaskExist();
@@ -14,99 +14,124 @@ Installer::InstallStatus Installer::Execute(ComInitializer &comObject)
 		if (bIsInstalled)
 		{
 			inst.ExecuteUninstall();
-			result = InstallStatus::isUninstalled;
 		}
 		else
 		{
 			inst.ExecuteInstall();
-			result = InstallStatus::isInstalled;
 		}
+		errorCode = ERROR_SUCCESS;
 	}
 	catch (long code)
 	{
-		result = ProcessError(code, bIsInstalled);
+		errorCode = code;
 	}
-	return result;
+	return ProcessError(errorCode, bIsInstalled);
 }
 
 Installer::InstallStatus Installer::Install(ComInitializer &comObject)
 {
-	InstallStatus result;
+	long errorCode = ERROR_SUCCESS;
 
 	Installer inst(comObject);
-	if (inst.IsTaskExist())
+	BOOL bIsInstalled = inst.IsTaskExist();
+	if (bIsInstalled)
 	{
-		ProcessError( ERROR_INVALID_FUNCTION, true);
-		result = InstallStatus::isAlready;
+		errorCode = ERROR_INVALID_FUNCTION;
 	}
 	else
 	{
 		try
 		{
 			inst.ExecuteInstall();
-			result = InstallStatus::isInstalled;
+			errorCode = ERROR_SUCCESS;
 		}
 		catch (long code)
 		{
-			result = ProcessError(code, false);
+			errorCode = code;
 		}
 	}
 
-	return result;
+	return ProcessError(errorCode, bIsInstalled);
 }
 
 Installer::InstallStatus Installer::Uninstall(ComInitializer &comObject)
 {
-	InstallStatus result;
+	long errorCode = ERROR_SUCCESS;
 
 	Installer inst(comObject);
-	if (inst.IsTaskExist() == FALSE)
+	BOOL bIsInstalled = inst.IsTaskExist();
+	if (bIsInstalled == FALSE)
 	{
-		ProcessError( ERROR_INVALID_FUNCTION, false);
-		result = isAlready;
+		errorCode = ERROR_INVALID_FUNCTION;
 	}
 	else
 	{
 		try
 		{
 			inst.ExecuteUninstall();
-			result = InstallStatus::isUninstalled;
+			errorCode = ERROR_SUCCESS;
 		}
 		catch (long code)
 		{
-			result = ProcessError(code, true);
+			errorCode = code;
 		}
 
 	}
 
-	return result;
+	return ProcessError(errorCode, bIsInstalled);
 }
 
 Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled)
 {
 	Installer::InstallStatus result = InstallStatus::isUnknown;
+
+	CAtlString cmd(::GetCommandLine()); 
+	::PathRemoveArgs(cmd.GetBuffer());
+	cmd.ReleaseBuffer();
+	CAtlString name = ::PathFindFileName(cmd);
+	name.Replace(_T('\"'),_T(''));
+
 	CAtlString message;
 	CAtlString title;
+	title.LoadString(IDS_TITLE_INSTALATION);
+	CAtlString platform;
+	
 	switch (code)
 	{
+	case 0:
+#ifdef _WIN64
+		platform.LoadString(IDS_X64);
+#else
+		platform.LoadString(IDS_X86);
+#endif
+		if (isInstalled)
+		{
+			message.Format(IDS_UNINSTALLED, platform);
+			result = InstallStatus::isUninstalled;
+		}
+		else
+		{
+			message.Format(IDS_INSTALLED, platform);
+			result = InstallStatus::isInstalled;
+		}
 	case 1:
-		title.LoadString(IDS_TITLE_INSTALATION);
 		message.LoadString(IDS_ALREADY);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+		result = isAlready;
 		break;
 	case 5:	
-		title.LoadString(IDS_TITLE_INSTALATION);
 		if (isInstalled)
 			message.LoadString(IDS_UNINSTALL_USAGE_INFO);
 		else
 			message.LoadString(IDS_INSTALATION_INFO);
-		::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+		message.Replace(_T("%sudoWin%"), name);
 		result = InstallStatus::isPrivileges;
 		break;
 	default:
+		message.Format(IDS_UNKNOWN, code);
 		result = InstallStatus::isUnknown;
 		break;
 	}
+	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
 	return result;
 }
 
@@ -147,18 +172,6 @@ void Installer::ExecuteInstall()
 	while ((dwRes == dwLen) && (::GetLastError() == ERROR_INSUFFICIENT_BUFFER));
 
 	CreateTask( sSelfPath );
-
-	CAtlString message;
-	CAtlString title;
-	title.LoadString(IDS_TITLE_INSTALATION);
-	CAtlString platform;
-#ifdef _WIN64
-	platform.LoadString(IDS_X64);
-#else
-	platform.LoadString(IDS_X86);
-#endif
-	message.Format(IDS_INSTALLED, platform);
-	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
 }
 
 void Installer::ExecuteUninstall()
@@ -167,18 +180,6 @@ void Installer::ExecuteUninstall()
 
 	m_hr = m_pFolder->DeleteTask(_bstr_t(TASK_NAME), 0);
 	ThrowOnError();
-
-	CAtlString message;
-	CAtlString title;
-	title.LoadString(IDS_TITLE_INSTALATION);
-	CAtlString platform;
-#ifdef _WIN64
-	platform.LoadString(IDS_X64);
-#else
-	platform.LoadString(IDS_X86);
-#endif
-	message.Format(IDS_UNINSTALLED, platform);
-	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
 }
 
 void Installer::CreateTask(CAtlString &sSelfPath)

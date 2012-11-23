@@ -17,6 +17,8 @@ int NewCmd( LPTSTR lpCmdLine );
 
 int ExecuteCmd();
 
+BOOL CheckCmdParam(CAtlString str, LPTSTR param);
+
 int _tmain(int argc, _TCHAR* argv[])
 {
     CString CommandLine;
@@ -47,19 +49,47 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
     LPTSTR    lpCmdLine,
     int       /*nCmdShow*/)
 {
-    if (( lpCmdLine ) && ( lpCmdLine[0] ))
+	if ((lpCmdLine == NULL) || (lpCmdLine[0] == 0))
 	{
-		if ( lpCmdLine[0] != '/')
-			return NewCmd( lpCmdLine );
-		else 
-			return ExecuteCmd();
+		ComInitializer comObj;
+		return Installer::Execute(comObj);
 	}
 
-	ComInitializer comObj;
+	CAtlString str(lpCmdLine);
+	if (CheckCmdParam(str, _T("/i")))
+	{
+		ComInitializer comObj;
+		return Installer::Install(comObj);
+	}
 
-    return Installer::Execute(comObj);
+	if (CheckCmdParam(str, _T("/u")))
+	{
+		ComInitializer comObj;
+		return Installer::Uninstall(comObj);
+	}
+
+	if (CheckCmdParam(str, _T("/")))
+	{
+		return ExecuteCmd();
+	}
+	return NewCmd( lpCmdLine );
 }
 
+BOOL CheckCmdParam(CAtlString str, LPTSTR param)
+{
+	int pos = str.Find(param);
+	if (pos == -1)
+		return FALSE;
+	
+	int len = _tcslen(param);
+	if (pos+len == str.GetLength())
+		return TRUE;
+	
+	if (str[pos+len] == ' ')
+		return TRUE;
+
+	return FALSE;
+}
 
 int NewCmd(LPTSTR lpCmdLine)
 {
