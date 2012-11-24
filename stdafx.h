@@ -21,3 +21,6 @@
 #include <atlstr.h>
 #include <Taskschd.h>
 #include <comutil.h>
+#include <iostream>
+#include <streambuf>
+#include <fstream>

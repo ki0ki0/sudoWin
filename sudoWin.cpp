@@ -4,18 +4,16 @@
 #include "stdafx.h"
 #include "sudoWin.h"
 
-#include <fcntl.h>
-#include <io.h>
-#include <iostream>
-
 #include "installer.h"
-#include "params.h"
+#include "Runner.h"
 
-using namespace std;
+#ifdef _WIN64
+#define TASK_NAME	_T("sudoWin64")
+#else
+#define TASK_NAME	_T("sudoWin")
+#endif
 
-int NewCmd( LPTSTR lpCmdLine );
-
-int ExecuteCmd();
+#define TASK_EXECUTION_PARAMETER	_T("/execute")
 
 BOOL CheckCmdParam(CAtlString str, LPTSTR param);
 
@@ -49,30 +47,42 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
     LPTSTR    lpCmdLine,
     int       /*nCmdShow*/)
 {
-	if ((lpCmdLine == NULL) || (lpCmdLine[0] == 0))
+	if (lpCmdLine == NULL)
 	{
 		ComInitializer comObj;
-		return Installer::Execute(comObj);
+		return Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj);
 	}
 
+	BOOL bSilent = FALSE;
 	CAtlString str(lpCmdLine);
+	if (CheckCmdParam(str, _T("/s")))
+	{
+		bSilent = TRUE;
+	}
+
 	if (CheckCmdParam(str, _T("/i")))
 	{
 		ComInitializer comObj;
-		return Installer::Install(comObj);
+		return Installer::Install(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj, bSilent);
 	}
 
 	if (CheckCmdParam(str, _T("/u")))
 	{
 		ComInitializer comObj;
-		return Installer::Uninstall(comObj);
+		return Installer::Uninstall(TASK_NAME, comObj, bSilent);
 	}
 
-	if (CheckCmdParam(str, _T("/")))
+	if (bSilent)
 	{
-		return ExecuteCmd();
+		ComInitializer comObj;
+		return Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj, bSilent);
 	}
-	return NewCmd( lpCmdLine );
+
+	if (CheckCmdParam(str, TASK_EXECUTION_PARAMETER))
+	{
+		return Runner::ExecuteCmd();
+	}
+	return Runner::NewCmd(TASK_NAME, lpCmdLine );
 }
 
 BOOL CheckCmdParam(CAtlString str, LPTSTR param)
@@ -90,123 +100,3 @@ BOOL CheckCmdParam(CAtlString str, LPTSTR param)
 
 	return FALSE;
 }
-
-int NewCmd(LPTSTR lpCmdLine)
-{
-	Params::Save(lpCmdLine);
-
-	DWORD dwProcessId = ::GetCurrentProcessId();
-    CString strEvent;
-    strEvent.Format(c_szEventRun, dwProcessId);
-    CHandle hEventRun( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
-	::ResetEvent( hEventRun);
-
-	strEvent.Format(c_szEventExit, dwProcessId);
-	CHandle hEventExit( ::CreateEvent( NULL, TRUE, FALSE, strEvent));
-	::ResetEvent( hEventExit);
-
-    CAtlString sApp = _T("schtasks /run /TN \"") TASK_NAME _T("\"");
-
-    STARTUPINFO startup_info = {0};
-    startup_info.cb = sizeof( STARTUPINFO );
-    PROCESS_INFORMATION process_info = {0};
-
-    BOOL bStatus = ::CreateProcess( NULL, sApp.GetBuffer(MAX_PATH), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup_info, &process_info );
-    if ( bStatus == FALSE)
-        return ecRunTask;
-    ::CloseHandle( process_info.hProcess );
-    ::CloseHandle( process_info.hThread );
-
-	if (::WaitForSingleObject(hEventRun, c_dwRunTimeout) != WAIT_OBJECT_0)
-		return ecUnknown;
-
-    ::WaitForSingleObject(hEventExit, INFINITE);
-
-    return ecNoError;
-}
-
-int ExecuteCmd()
-{
-    CAtlString sDir, sApp, sArgs;
-	DWORD dwProcessId;
-
-	Params::Load( sDir, sApp, sArgs, dwProcessId);
-
-    AttachConsole(dwProcessId);
-
-    HANDLE hDeviceIn = ::GetStdHandle(STD_INPUT_HANDLE);
-    SetHandleInformation(hDeviceIn, HANDLE_FLAG_INHERIT, 0);
-
-    HANDLE hDeviceOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetHandleInformation(hDeviceOut, HANDLE_FLAG_INHERIT, 0);
-
-    HANDLE hDeviceErr = GetStdHandle(STD_ERROR_HANDLE);
-    SetHandleInformation(hDeviceErr, HANDLE_FLAG_INHERIT, 0);
-
-    STARTUPINFO startup_info = {0};
-    startup_info.cb = sizeof( STARTUPINFO );
-
-    BOOL bConsole = FALSE;
-
-    if (hDeviceIn || hDeviceOut || hDeviceErr)
-    {
-        startup_info.dwFlags = STARTF_USESTDHANDLES;
-        startup_info.hStdInput = hDeviceIn;
-        startup_info.hStdOutput = hDeviceOut;
-        startup_info.hStdError = hDeviceErr;
-
-    	int fd = _open_osfhandle((intptr_t)hDeviceOut, _O_TEXT);
-		if (fd > 0)
-		{
-			*stdout = *_fdopen(fd, "w");
-			setvbuf(stdout, NULL, _IONBF, 0 );
-        }
-
-	    cout << endl;
-
-        bConsole = TRUE;
-    }
-
-    PROCESS_INFORMATION process_info = {0};
-
-    sApp += _T(" ") + sArgs;
-
-    LPCTSTR lpDir = NULL;
-    if (sDir.GetLength() > 0)
-        lpDir = sDir.GetString();
-
-	CString strEvent;
-    strEvent.Format(c_szEventRun, dwProcessId);
-    
-	CHandle hEventRun (::OpenEvent( EVENT_MODIFY_STATE, FALSE, strEvent));
-	if (hEventRun.m_h)
-    {
-        ::SetEvent(hEventRun);
-    }
-
-    BOOL bStatus = ::CreateProcess( NULL, sApp.GetBuffer(MAX_PATH), NULL, NULL, TRUE, 0, NULL, lpDir, &startup_info, &process_info );
-    if ( bStatus == FALSE)
-        return ecRegSHExec;
-
-    if (process_info.hProcess != NULL)
-        ::WaitForSingleObject(process_info.hProcess, INFINITE);
-
-    ::CloseHandle( process_info.hProcess );
-    ::CloseHandle( process_info.hThread );
-
-    if (bConsole)
-	    cout << endl;
-
-    strEvent.Format(c_szEventExit, dwProcessId);
-    
-	CHandle hEventExit (::OpenEvent( EVENT_MODIFY_STATE, FALSE, strEvent));
-	if (hEventExit.m_h)
-    {
-        ::SetEvent(hEventExit);
-    }
-
-	Params::Clear();
-    
-    return ecNoError;
-}
-

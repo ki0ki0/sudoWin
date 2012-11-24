@@ -1,11 +1,5 @@
 #include "ComInitializer.h"
 
-#ifdef _WIN64
-#define TASK_NAME	_T("sudoWin64")
-#else
-#define TASK_NAME	_T("sudoWin")
-#endif
-
 class Installer
 {
 public:
@@ -19,16 +13,18 @@ public:
 		isAlready
 	};
 
-	static InstallStatus Execute(ComInitializer &comObject);
-	static InstallStatus Install(ComInitializer &comObject);
-	static InstallStatus Uninstall(ComInitializer &comObject);
+	static InstallStatus Execute(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent = FALSE);
+	static InstallStatus Install(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent = FALSE);
+	static InstallStatus Uninstall(LPCTSTR taskname, ComInitializer &comObject, BOOL bSilent = FALSE);
 private:
 	ComInitializer &m_comObj;
 	HRESULT m_hr;
 	CComPtr<ITaskService> m_pService;
 	CComPtr<ITaskFolder> m_pFolder;
+	LPCTSTR m_lpTaskName;
+	LPCTSTR m_lpTaskParam;
 
-	Installer(ComInitializer &comObject);
+	Installer(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject);
 	void ThrowOnError();
 
 	BOOL IsTaskExist();
@@ -38,5 +34,5 @@ private:
 
 	void CreateTask(CAtlString &sSelfPath);	
 
-	static InstallStatus ProcessError( int code, BOOL isInstalled);
+	static InstallStatus ProcessError( int code, BOOL isInstalled, BOOL bSilent);
 };

@@ -3,11 +3,11 @@
 #include "installer.h"
 #include "resource.h"
 
-Installer::InstallStatus Installer::Execute(ComInitializer &comObject)
+Installer::InstallStatus Installer::Execute(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent)
 {
 	long errorCode = ERROR_SUCCESS;
 
-	Installer inst(comObject);
+	Installer inst(taskname, taskparam, comObject);
 	BOOL bIsInstalled = inst.IsTaskExist();
 	try
 	{
@@ -25,14 +25,14 @@ Installer::InstallStatus Installer::Execute(ComInitializer &comObject)
 	{
 		errorCode = code;
 	}
-	return ProcessError(errorCode, bIsInstalled);
+	return ProcessError(errorCode, bIsInstalled, bSilent);
 }
 
-Installer::InstallStatus Installer::Install(ComInitializer &comObject)
+Installer::InstallStatus Installer::Install(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent)
 {
 	long errorCode = ERROR_SUCCESS;
 
-	Installer inst(comObject);
+	Installer inst(taskname, taskparam, comObject);
 	BOOL bIsInstalled = inst.IsTaskExist();
 	if (bIsInstalled)
 	{
@@ -51,14 +51,14 @@ Installer::InstallStatus Installer::Install(ComInitializer &comObject)
 		}
 	}
 
-	return ProcessError(errorCode, bIsInstalled);
+	return ProcessError(errorCode, bIsInstalled, bSilent);
 }
 
-Installer::InstallStatus Installer::Uninstall(ComInitializer &comObject)
+Installer::InstallStatus Installer::Uninstall(LPCTSTR taskname, ComInitializer &comObject, BOOL bSilent)
 {
 	long errorCode = ERROR_SUCCESS;
 
-	Installer inst(comObject);
+	Installer inst(taskname, nullptr, comObject);
 	BOOL bIsInstalled = inst.IsTaskExist();
 	if (bIsInstalled == FALSE)
 	{
@@ -78,10 +78,10 @@ Installer::InstallStatus Installer::Uninstall(ComInitializer &comObject)
 
 	}
 
-	return ProcessError(errorCode, bIsInstalled);
+	return ProcessError(errorCode, bIsInstalled, bSilent);
 }
 
-Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled)
+Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled, BOOL bSilent)
 {
 	Installer::InstallStatus result = InstallStatus::isUnknown;
 
@@ -114,6 +114,7 @@ Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled)
 			message.Format(IDS_INSTALLED, platform);
 			result = InstallStatus::isInstalled;
 		}
+		break;
 	case 1:
 		message.LoadString(IDS_ALREADY);
 		result = isAlready;
@@ -131,7 +132,22 @@ Installer::InstallStatus Installer::ProcessError( int code, BOOL isInstalled)
 		result = InstallStatus::isUnknown;
 		break;
 	}
-	::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+	if (bSilent == FALSE)
+	{
+		if (::AttachConsole(-1) == FALSE)
+			::MessageBox( NULL, message, title, MB_ICONINFORMATION );
+		else
+		{
+			std::wstreambuf *backup = std::wcout.rdbuf();
+			std::wofstream console_out("CONOUT$");
+			std::wcout.rdbuf(console_out.rdbuf());
+
+			std::wcout<<std::endl<<title.GetString()<<std::endl<<message.GetString()<<std::endl<<std::endl;
+
+			console_out.close();
+			std::wcout.rdbuf(backup);
+		}
+	}
 	return result;
 }
 
@@ -140,7 +156,8 @@ void Installer::ThrowOnError()
 	m_comObj.ThrowOnError(m_hr);
 }
 
-Installer::Installer(ComInitializer &com):m_comObj(com)
+Installer::Installer(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &com):
+	m_comObj(com), m_lpTaskName(taskname), m_lpTaskParam(taskparam)
 {
 	m_hr = CoCreateInstance( CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&m_pService );  
 	ThrowOnError();
@@ -155,7 +172,7 @@ Installer::Installer(ComInitializer &com):m_comObj(com)
 BOOL Installer::IsTaskExist()
 {
 	CComPtr<IRegisteredTask> pTask;
-	m_pFolder->GetTask(_bstr_t(TASK_NAME), &pTask);
+	m_pFolder->GetTask(_bstr_t(m_lpTaskName), &pTask);
 	ThrowOnError();
 	return (pTask != NULL);
 }
@@ -178,7 +195,7 @@ void Installer::ExecuteUninstall()
 {
 	InstallStatus result = isUnknown;
 
-	m_hr = m_pFolder->DeleteTask(_bstr_t(TASK_NAME), 0);
+	m_hr = m_pFolder->DeleteTask(_bstr_t(m_lpTaskName), 0);
 	ThrowOnError();
 }
 
@@ -223,13 +240,12 @@ void Installer::CreateTask(CAtlString &sSelfPath)
 	m_hr = pExecAction->put_Path( _bstr_t(sSelfPath.GetString()) );
 	ThrowOnError();
 
-	sSelfPath = "/";
-	m_hr = pExecAction->put_Arguments( _bstr_t(sSelfPath.GetString()) );
+	m_hr = pExecAction->put_Arguments( _bstr_t(m_lpTaskParam) );
 	ThrowOnError();
 
 	// Register
 	CComPtr<IRegisteredTask> pRegisteredTask;
-	m_hr = m_pFolder->RegisterTaskDefinition( _bstr_t(TASK_NAME), pDefinition, TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
+	m_hr = m_pFolder->RegisterTaskDefinition( _bstr_t(m_lpTaskName), pDefinition, TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
 		TASK_LOGON_INTERACTIVE_TOKEN, _variant_t(L""), &pRegisteredTask);
 	ThrowOnError();
 }
