@@ -2,26 +2,42 @@
 
 #include "regvalue.h"
 
+#include "win32_exception.h"
+
 void RegValue::CheckError()
 {
 	if (m_stResult != ERROR_SUCCESS)
 	{
-		throw m_stResult;
+		throw win32_exception("Error while operating with register", m_stResult);
 	}
 }
 
-RegValue::RegValue(HKEY hkey, LPCTSTR lpSubKey, BOOL bAllowWrite)
+RegValue::RegValue(HKEY hkey, LPCTSTR lpSubKey, BOOL bIsWritable):
+	m_bIsWritable(bIsWritable)
 {
 	HKEY hKey;
 	m_stResult = ::RegCreateKeyEx(hkey, lpSubKey, 0, NULL, 0, 
-		bAllowWrite? KEY_WRITE: KEY_READ, NULL, &hKey, NULL);
-	CheckError();
-
+		m_bIsWritable? KEY_WRITE: KEY_READ, NULL, &hKey, NULL);
+	CheckError();	
 	m_hKey.Attach(hKey);
+}
+
+void RegValue::CheckReadPerissions()
+{
+	if (m_bIsWritable)
+		throw std::logic_error("This key is for write");
+}
+
+void RegValue::CheckWritePerissions()
+{
+	if (m_bIsWritable == false)
+		throw std::logic_error("This key is for read");
 }
 
 CAtlString RegValue::GetString(LPCTSTR lpValue)
 {
+	CheckReadPerissions();
+
 	DWORD dLen;
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, NULL, NULL, &dLen);
     CheckError();
@@ -38,6 +54,8 @@ CAtlString RegValue::GetString(LPCTSTR lpValue)
 
 DWORD RegValue::GetDword(LPCTSTR lpValue)
 {
+	CheckReadPerissions();
+
 	DWORD dwType;
 	DWORD dwVal;
 	DWORD dwLen;
@@ -53,18 +71,24 @@ DWORD RegValue::GetDword(LPCTSTR lpValue)
 
 void RegValue::SetString(LPCTSTR lpValue, LPCTSTR lpText, DWORD dwLen)
 {
-	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, REG_SZ, (LPBYTE)lpText, dwLen);
+	CheckWritePerissions();
+
+	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, REG_SZ, (LPBYTE)lpText, dwLen * sizeof(lpText[0]));
     CheckError();
 }
 
 void RegValue::SetDword(LPCTSTR lpValue, DWORD dwVal)
 {
+	CheckWritePerissions();
+
 	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, RRF_RT_REG_BINARY, (LPBYTE)&dwVal, sizeof(dwVal));
     CheckError();
 }
 
 void RegValue::Delete(LPCTSTR lpValue)
 {
+	CheckWritePerissions();
+
 	m_stResult = ::RegDeleteValue( (HKEY)m_hKey.m_h, lpValue);
     CheckError();
 }

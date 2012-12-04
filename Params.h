@@ -12,7 +12,7 @@ class Params
 private:
 	Params(){}
 public:
-	static void Save( LPTSTR lpCmdLine);
+	static void Save( LPCTSTR lpCmdLine);
 	static void Load( CAtlString &sDir, CAtlString &sApp, CAtlString &sArgs, DWORD &dwProcessId);
 	static void Clear();
 };

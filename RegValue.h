@@ -10,5 +10,9 @@ public:
 private:
 	CHandle	m_hKey;
 	LSTATUS m_stResult;
+	bool m_bIsWritable;
 	void CheckError();
+
+	void CheckReadPerissions();
+	void CheckWritePerissions();
 };

@@ -171,6 +171,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="sudoWin.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="win32_exception.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ComInitializer.cpp" />

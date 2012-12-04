@@ -3,13 +3,15 @@
 #include "params.h"
 #include "regvalue.h"
 
-void Params::Save( LPTSTR lpCmdLine)
+void Params::Save( LPCTSTR lpCmdLine)
 {
 	if (( lpCmdLine == NULL ))
 		throw ERROR_INVALID_DATA ;
 
 	LPTSTR lpArgs = PathGetArgs( lpCmdLine );
-    PathRemoveArgs( lpCmdLine );
+	CAtlString sApp(lpCmdLine);
+	PathRemoveArgs( sApp.GetBuffer() );
+	sApp.ReleaseBuffer();
 
     CAtlString sDir;
 	DWORD dwLen = 0;
@@ -20,7 +22,7 @@ void Params::Save( LPTSTR lpCmdLine)
 
 	RegValue reg(HKEY_CURRENT_USER, c_szRegPath, true);
 
-	reg.SetString( c_szExecApp, lpCmdLine, ( _tcslen(lpCmdLine) + 1 ) * sizeof( lpCmdLine[0] ));
+	reg.SetString( c_szExecApp, sApp, ( sApp.GetLength() + 1 ) * sizeof( sApp[0] ));
     reg.SetString( c_szExecArgs, lpArgs, ( _tcslen(lpArgs) + 1 ) * sizeof( lpArgs[0] ));
     reg.SetString( c_szExecDir, sDir.GetString(), ( sDir.GetLength() + 1 ) * sizeof( sDir[0] ));
 
