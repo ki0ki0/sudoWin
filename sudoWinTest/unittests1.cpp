@@ -57,7 +57,40 @@ namespace sudoWinTest
 			Assert::IsTrue( val == rr.GetDword(L"dword"), L"DWORD is not saved in correct way");
 			rw.Delete(L"dword");
 		}
+
+		TEST_METHOD(TestRegValueStringToDword)
+		{
+			RegValue rw(HKEY_CURRENT_USER, L"sudowin\test", true);
+			CAtlString str("asdasdas");
+			rw.SetString(L"dword", str, str.GetLength() + 1);
+			RegValue rr(HKEY_CURRENT_USER, L"sudowin\test", false);
+
+			auto f1 = [&rr] {
+				rr.GetDword(L"dword");
+			};
+			Assert::ExpectException<std::runtime_error>(f1, L"DWORD type check isn't valid");
+			rw.Delete(L"dword");
+		}
+
+		TEST_METHOD(TestRegValueDwordToString)
+		{
+			RegValue rw(HKEY_CURRENT_USER, L"sudowin\test", true);
+			rw.SetDword(L"dword", 12345);
+			RegValue rr(HKEY_CURRENT_USER, L"sudowin\test", false);
+
+			auto f1 = [&rr] {
+				rr.GetString(L"dword");
+			};
+			Assert::ExpectException<std::runtime_error>(f1, L"String type check isn't valid");
+			rw.Delete(L"dword");
+		}
 		
+		TEST_METHOD(TestParamsSaveInput)
+		{
+			auto f1 = [] {Params::Save(nullptr);};
+			Assert::ExpectException<std::invalid_argument>(f1, L"No input parameters check");
+		}
+
 		TEST_METHOD(TestParamsSaveLoadClear)
 		{
 			CAtlString wdr(L"c:\\users");
@@ -75,7 +108,21 @@ namespace sudoWinTest
 			Assert::IsTrue(par == args, L"Arguments parsing error");
 			Assert::IsTrue(id == ::GetCurrentProcessId(), L"ProcessId is incorrect");
 			Assert::IsTrue(wdr == dir, L"Working dir isn't correct");
-			
+		}
+		
+		TEST_METHOD(TestParamsSaveClear)
+		{
+			CAtlString wdr(L"c:\\users");
+			CAtlString path(L"d:\\1.exe");
+			CAtlString args(L"123 qwe rty");
+			CAtlString tmp(path);
+			tmp.Append(L" ");
+			tmp.Append(args);
+			_wchdir(wdr);
+			Params::Save(tmp.GetString());
+
+			CAtlString dir, exe, par;
+			DWORD id;
 			Params::Clear();
 			try
 			{

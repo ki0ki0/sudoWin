@@ -39,8 +39,12 @@ CAtlString RegValue::GetString(LPCTSTR lpValue)
 	CheckReadPerissions();
 
 	DWORD dLen;
-	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, NULL, NULL, &dLen);
+	DWORD dwType;
+	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, NULL, &dLen);
     CheckError();
+
+	if (dwType != REG_SZ)
+		throw std::runtime_error("Incompatible types");
 
     CAtlString str;
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, NULL,
@@ -62,8 +66,8 @@ DWORD RegValue::GetDword(LPCTSTR lpValue)
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, NULL, &dwLen);
 	CheckError();
 
-	if ((dwType != RRF_RT_REG_BINARY) || (dwLen != sizeof(dwVal)))
-		throw "Wrong type of value";
+	if ((dwType != REG_DWORD) || (dwLen != sizeof(dwVal)))
+		throw std::runtime_error("Incompatible types");
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, (LPBYTE)&dwVal, &dwLen);
 	CheckError();
 	return dwVal;
@@ -81,7 +85,7 @@ void RegValue::SetDword(LPCTSTR lpValue, DWORD dwVal)
 {
 	CheckWritePerissions();
 
-	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, RRF_RT_REG_BINARY, (LPBYTE)&dwVal, sizeof(dwVal));
+	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, REG_DWORD, (LPBYTE)&dwVal, sizeof(dwVal));
     CheckError();
 }
 

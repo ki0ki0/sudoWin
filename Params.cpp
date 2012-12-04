@@ -6,7 +6,7 @@
 void Params::Save( LPCTSTR lpCmdLine)
 {
 	if (( lpCmdLine == NULL ))
-		throw ERROR_INVALID_DATA ;
+		throw std::invalid_argument("Command line is required");
 
 	LPTSTR lpArgs = PathGetArgs( lpCmdLine );
 	CAtlString sApp(lpCmdLine);
