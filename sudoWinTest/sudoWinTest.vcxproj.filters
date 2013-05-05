@@ -35,10 +35,13 @@
     <ClCompile Include="..\Params.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="unittests1.cpp">
+    <ClCompile Include="..\RegValue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\RegValue.cpp">
+    <ClCompile Include="TestParams.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TestRegValue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

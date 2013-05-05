@@ -91,7 +91,7 @@ BOOL CheckCmdParam(CAtlString str, LPTSTR param)
 	if (pos == -1)
 		return FALSE;
 	
-	int len = _tcslen(param);
+	size_t len = _tcslen(param);
 	if (pos+len == str.GetLength())
 		return TRUE;
 	
