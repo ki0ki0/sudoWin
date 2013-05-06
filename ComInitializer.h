@@ -5,6 +5,6 @@ public:
 	ComInitializer(void);
 	~ComInitializer(void);
 
-	void ThrowOnError(HRESULT hr);
+	void ThrowOnError(HRESULT hr, LPCSTR message = NULL);
 };
 

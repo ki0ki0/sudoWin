@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "ComInitializer.h"
+#include "win32_exception.h"
 
 
 ComInitializer::ComInitializer(void)
@@ -14,10 +15,10 @@ ComInitializer::~ComInitializer(void)
 	::CoUninitialize();
 }
 
-void ComInitializer::ThrowOnError(HRESULT hr)
+void ComInitializer::ThrowOnError(HRESULT hr, LPCSTR message)
 {
 	if (FAILED(hr))
 	{
-		throw HRESULT_CODE(hr);
+		throw win32_exception(message, hr);
 	}
 }

@@ -6,6 +6,7 @@
 
 #include "installer.h"
 #include "Runner.h"
+#include "win32_exception.h"
 
 #ifdef _WIN64
 #define TASK_NAME	_T("sudoWin64")
@@ -16,6 +17,10 @@
 #define TASK_EXECUTION_PARAMETER	_T("/execute")
 
 BOOL CheckCmdParam(CAtlString str, LPTSTR param);
+DWORD ProcessError( HRESULT hrStatus, BOOL bInstall, LPCSTR szMessage, BOOL bSilent);
+void ShowMessage(LPCTSTR szMessage);
+
+#define Message(x) if (bSilent == FALSE) ShowMessage(x)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -47,42 +52,69 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
     LPTSTR    lpCmdLine,
     int       /*nCmdShow*/)
 {
-	if (lpCmdLine == NULL)
-	{
-		ComInitializer comObj;
-		return Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj);
-	}
-
+	HRESULT hrStatus = S_OK;
+	BOOL bInstall = TRUE;
 	BOOL bSilent = FALSE;
-	CAtlString str(lpCmdLine);
-	if (CheckCmdParam(str, _T("/s")))
+	try
 	{
-		bSilent = TRUE;
-	}
+		if ((lpCmdLine == NULL) || (lpCmdLine[0] == 0))
+		{
+			ComInitializer comObj;
+			hrStatus = Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, bInstall, comObj);
+			CAtlString str;
+			str.LoadString(bInstall? IDS_INSTALLED : IDS_UNINSTALLED);
+			Message(str);
+		}
+		else
+		{
+			CAtlString str(lpCmdLine);
 
-	if (CheckCmdParam(str, _T("/i")))
-	{
-		ComInitializer comObj;
-		return Installer::Install(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj, bSilent);
-	}
+			bSilent = CheckCmdParam(str, _T("/s"));
 
-	if (CheckCmdParam(str, _T("/u")))
-	{
-		ComInitializer comObj;
-		return Installer::Uninstall(TASK_NAME, comObj, bSilent);
+			if (CheckCmdParam(str, _T("/i")))
+			{
+				bInstall = TRUE;
+				ComInitializer comObj;
+				hrStatus = Installer::Install(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj);
+				CAtlString str;
+				str.LoadString(IDS_INSTALLED);
+				Message(str);
+			}
+			else if (CheckCmdParam(str, _T("/u")))
+			{
+				bInstall = FALSE;
+				ComInitializer comObj;
+				hrStatus = Installer::Uninstall(TASK_NAME, comObj);
+				CAtlString str;
+				str.LoadString(IDS_UNINSTALLED);
+				Message(str);
+			}
+			else if (CheckCmdParam(str, TASK_EXECUTION_PARAMETER))
+			{
+				hrStatus = Runner::ExecuteCmd();
+			}
+			else
+			{
+				try
+				{
+					hrStatus = Runner::NewCmd(TASK_NAME, lpCmdLine );
+				}
+				catch (std::invalid_argument)
+				{
+					ComInitializer comObj;
+					hrStatus = Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, bInstall, comObj);
+					CAtlString str;
+					str.LoadString(bInstall? IDS_INSTALLED : IDS_UNINSTALLED);
+					Message(str);
+				}
+			}
+		}
 	}
-
-	if (bSilent)
+	catch (win32_exception ex)
 	{
-		ComInitializer comObj;
-		return Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj, bSilent);
+		return ProcessError(ex.GetStatus(), bInstall, ex.what(), bSilent);
 	}
-
-	if (CheckCmdParam(str, TASK_EXECUTION_PARAMETER))
-	{
-		return Runner::ExecuteCmd();
-	}
-	return Runner::NewCmd(TASK_NAME, lpCmdLine );
+	return HRESULT_CODE(hrStatus);
 }
 
 BOOL CheckCmdParam(CAtlString str, LPTSTR param)
@@ -99,4 +131,66 @@ BOOL CheckCmdParam(CAtlString str, LPTSTR param)
 		return TRUE;
 
 	return FALSE;
+}
+
+
+DWORD ProcessError( HRESULT hrStatus, BOOL bInstall, LPCSTR szMessage, BOOL bSilent)
+{
+	CAtlString cmd(::GetCommandLine()); 
+	::PathRemoveArgs(cmd.GetBuffer());
+	cmd.ReleaseBuffer();
+	CAtlString name = ::PathFindFileName(cmd);
+	name.Replace(_T('\"'),_T(''));
+
+	CAtlString message;
+	
+	switch (HRESULT_CODE(hrStatus))
+	{
+	case 1:
+		message.LoadString(IDS_ALREADY);
+		break;
+	case 5:	
+		if (bInstall)
+			message.LoadString(IDS_INSTALATION_INFO);
+		else
+			message.LoadString(IDS_UNINSTALL_USAGE_INFO);
+		message.Replace(_T("%sudoWin%"), name);
+		break;
+	default:
+		message.Format(IDS_UNKNOWN, hrStatus);
+		break;
+	}
+	Message(message);
+	return HRESULT_CODE(hrStatus);
+}
+
+void ShowMessage(LPCTSTR szMessage)
+{
+	CAtlString strPlatform;
+
+#ifdef _WIN64
+		strPlatform.LoadString(IDS_X64);
+#else
+		strPlatform.LoadString(IDS_X86);
+#endif
+
+	CAtlString strTitle;
+	strTitle.LoadString(IDS_TITLE_INSTALATION);
+
+	CAtlString strMessage;
+	strMessage.Format(szMessage, strPlatform);
+
+	if (::AttachConsole(-1) == FALSE)
+		::MessageBox( NULL, strMessage, strTitle, MB_ICONINFORMATION );
+	else
+	{
+		std::wstreambuf *backup = std::wcout.rdbuf();
+		std::wofstream console_out("CONOUT$");
+		std::wcout.rdbuf(console_out.rdbuf());
+
+		std::wcout<<std::endl<<strTitle<<std::endl<<szMessage<<std::endl<<std::endl;
+
+		console_out.close();
+		std::wcout.rdbuf(backup);
+	}
 }

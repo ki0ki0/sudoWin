@@ -3,19 +3,9 @@
 class Installer
 {
 public:
-	enum InstallStatus
-	{
-		isUnknown = 0,
-		isCanceled,
-		isPrivileges,
-		isInstalled,
-		isUninstalled,
-		isAlready
-	};
-
-	static InstallStatus Execute(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent = FALSE);
-	static InstallStatus Install(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject, BOOL bSilent = FALSE);
-	static InstallStatus Uninstall(LPCTSTR taskname, ComInitializer &comObject, BOOL bSilent = FALSE);
+	static HRESULT Execute(LPCTSTR taskname, LPCTSTR taskparam, BOOL &bInstall, ComInitializer &comObject);
+	static HRESULT Install(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject);
+	static HRESULT Uninstall(LPCTSTR taskname, ComInitializer &comObject);
 private:
 	ComInitializer &m_comObj;
 	HRESULT m_hr;
@@ -25,14 +15,12 @@ private:
 	LPCTSTR m_lpTaskParam;
 
 	Installer(LPCTSTR taskname, LPCTSTR taskparam, ComInitializer &comObject);
-	void ThrowOnError();
+	HRESULT ThrowOnError(LPCSTR message = NULL);
 
 	BOOL IsTaskExist();
 
-	void ExecuteInstall();
-	void ExecuteUninstall();
+	HRESULT ExecuteInstall();
+	HRESULT ExecuteUninstall();
 
-	void CreateTask(CAtlString &sSelfPath);	
-
-	static InstallStatus ProcessError( int code, BOOL isInstalled, BOOL bSilent);
+	HRESULT CreateTask(CAtlString &sSelfPath);	
 };

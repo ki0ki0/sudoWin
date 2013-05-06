@@ -71,10 +71,10 @@
     <ClCompile Include="ComInitializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Install.cpp">
+    <ClCompile Include="Runner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Runner.cpp">
+    <ClCompile Include="Installer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

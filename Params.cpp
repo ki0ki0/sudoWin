@@ -5,7 +5,7 @@
 
 void Params::Save( LPCTSTR lpCmdLine)
 {
-	if (( lpCmdLine == NULL ))
+	if (( lpCmdLine == NULL ) || (lpCmdLine[0] == 0))
 		throw std::invalid_argument("Command line is required");
 
 	LPTSTR lpArgs = PathGetArgs( lpCmdLine );

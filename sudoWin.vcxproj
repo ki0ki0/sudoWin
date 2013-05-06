@@ -175,7 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ComInitializer.cpp" />
-    <ClCompile Include="Install.cpp" />
+    <ClCompile Include="Installer.cpp" />
     <ClCompile Include="Params.cpp" />
     <ClCompile Include="RegValue.cpp" />
     <ClCompile Include="Runner.cpp" />
