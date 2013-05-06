@@ -59,7 +59,7 @@ HRESULT Installer::Uninstall(LPCTSTR taskname, ComInitializer &comObject)
 
 HRESULT Installer::ThrowOnError(LPCSTR message)
 {
-	m_comObj.ThrowOnError(m_hr);
+	m_comObj.ThrowOnError(m_hr, message);
 	return m_hr;
 }
 

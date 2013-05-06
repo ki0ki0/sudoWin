@@ -162,6 +162,7 @@
     <None Include="sudoWin.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CmdLineParser.h" />
     <ClInclude Include="ComInitializer.h" />
     <ClInclude Include="Installer.h" />
     <ClInclude Include="Params.h" />
@@ -174,6 +175,7 @@
     <ClInclude Include="win32_exception.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CmdLineParser.cpp" />
     <ClCompile Include="ComInitializer.cpp" />
     <ClCompile Include="Installer.cpp" />
     <ClCompile Include="Params.cpp" />

@@ -54,6 +54,9 @@
     <ClInclude Include="win32_exception.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CmdLineParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -75,6 +78,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Installer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CmdLineParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -7,6 +7,7 @@
 #include "installer.h"
 #include "Runner.h"
 #include "win32_exception.h"
+#include "CmdLineParser.h"
 
 #ifdef _WIN64
 #define TASK_NAME	_T("sudoWin64")
@@ -16,36 +17,17 @@
 
 #define TASK_EXECUTION_PARAMETER	_T("/execute")
 
-BOOL CheckCmdParam(CAtlString str, LPTSTR param);
-DWORD ProcessError( HRESULT hrStatus, BOOL bInstall, LPCSTR szMessage, BOOL bSilent);
+DWORD ProcessError(DWORD dwMode, HRESULT hrStatus, LPCSTR szMessage = NULL);
 void ShowMessage(LPCTSTR szMessage);
 
-#define Message(x) if (bSilent == FALSE) ShowMessage(x)
-
-int _tmain(int argc, _TCHAR* argv[])
+enum Mode
 {
-    CString CommandLine;
-    bool fAddQuotes = false;
-
-    for (int i = 0; i < argc; i++)
-    {
-        if (_tcschr(argv[i], _T(' ')))
-        {
-            fAddQuotes = true;
-            CommandLine += _T('\"');
-        }
-
-        CommandLine += argv[i];
-
-        if (fAddQuotes)
-            CommandLine += _T('\"');
-
-        CommandLine += _T(' ');
-    }
-
-    return _tWinMain(0, 0, CommandLine.GetBuffer(), 0);
-}
-
+	mNone = 0,
+	mInstall = 1,
+	mUninstall = 2,
+	mRun = 4,
+	mSilence = 8
+};
 
 int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
     HINSTANCE /*hPrevInstance*/,
@@ -53,88 +35,57 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
     int       /*nCmdShow*/)
 {
 	HRESULT hrStatus = S_OK;
-	BOOL bInstall = TRUE;
-	BOOL bSilent = FALSE;
+	CCmdLineParser cmdParser(lpCmdLine);
+	cmdParser.AddFlag(_T("/i"), mInstall);
+	cmdParser.AddFlag(_T("/u"), mUninstall);
+	cmdParser.AddFlag(TASK_EXECUTION_PARAMETER, mRun);
+	DWORD dwMode = cmdParser.AddFlag(_T("/s"), mSilence);
+
 	try
 	{
-		if ((lpCmdLine == NULL) || (lpCmdLine[0] == 0))
+		if ((dwMode & mInstall) == mInstall)
 		{
 			ComInitializer comObj;
-			hrStatus = Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, bInstall, comObj);
-			CAtlString str;
-			str.LoadString(bInstall? IDS_INSTALLED : IDS_UNINSTALLED);
-			Message(str);
+			hrStatus = Installer::Install(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj);
 		}
-		else
+		else if ((dwMode & mUninstall) == mUninstall)
 		{
-			CAtlString str(lpCmdLine);
-
-			bSilent = CheckCmdParam(str, _T("/s"));
-
-			if (CheckCmdParam(str, _T("/i")))
-			{
-				bInstall = TRUE;
-				ComInitializer comObj;
-				hrStatus = Installer::Install(TASK_NAME, TASK_EXECUTION_PARAMETER, comObj);
-				CAtlString str;
-				str.LoadString(IDS_INSTALLED);
-				Message(str);
-			}
-			else if (CheckCmdParam(str, _T("/u")))
-			{
-				bInstall = FALSE;
-				ComInitializer comObj;
-				hrStatus = Installer::Uninstall(TASK_NAME, comObj);
-				CAtlString str;
-				str.LoadString(IDS_UNINSTALLED);
-				Message(str);
-			}
-			else if (CheckCmdParam(str, TASK_EXECUTION_PARAMETER))
-			{
-				hrStatus = Runner::ExecuteCmd();
-			}
-			else
-			{
-				try
-				{
-					hrStatus = Runner::NewCmd(TASK_NAME, lpCmdLine );
-				}
-				catch (std::invalid_argument)
-				{
-					ComInitializer comObj;
-					hrStatus = Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, bInstall, comObj);
-					CAtlString str;
-					str.LoadString(bInstall? IDS_INSTALLED : IDS_UNINSTALLED);
-					Message(str);
-				}
-			}
+			ComInitializer comObj;
+			hrStatus = Installer::Uninstall(TASK_NAME, comObj);
 		}
+		else if ((dwMode & mRun) == mRun)
+		{
+			hrStatus = Runner::ExecuteCmd();
+		}
+		else if ((lpCmdLine == NULL) || (lpCmdLine[0] == 0) || (dwMode == mSilence))
+		{
+			BOOL bInstall = FALSE;
+			ComInitializer comObj;
+			try
+			{
+				hrStatus = Installer::Execute(TASK_NAME, TASK_EXECUTION_PARAMETER, bInstall, comObj);
+			}
+			catch(...)
+			{
+				dwMode |= bInstall? mInstall : mUninstall;
+				throw;
+			}
+			dwMode |= bInstall? mInstall : mUninstall;
+		}
+		else 
+		{
+			hrStatus = Runner::NewCmd(TASK_NAME, lpCmdLine );
+		}
+		
 	}
 	catch (win32_exception ex)
 	{
-		return ProcessError(ex.GetStatus(), bInstall, ex.what(), bSilent);
+		return ProcessError(dwMode, ex.GetStatus(), ex.what());
 	}
-	return HRESULT_CODE(hrStatus);
+	return ProcessError(dwMode, hrStatus);
 }
 
-BOOL CheckCmdParam(CAtlString str, LPTSTR param)
-{
-	int pos = str.Find(param);
-	if (pos == -1)
-		return FALSE;
-	
-	size_t len = _tcslen(param);
-	if (pos+len == str.GetLength())
-		return TRUE;
-	
-	if (str[pos+len] == ' ')
-		return TRUE;
-
-	return FALSE;
-}
-
-
-DWORD ProcessError( HRESULT hrStatus, BOOL bInstall, LPCSTR szMessage, BOOL bSilent)
+DWORD ProcessError(DWORD dwMode, HRESULT hrStatus, LPCSTR szMessage)
 {
 	CAtlString cmd(::GetCommandLine()); 
 	::PathRemoveArgs(cmd.GetBuffer());
@@ -146,21 +97,39 @@ DWORD ProcessError( HRESULT hrStatus, BOOL bInstall, LPCSTR szMessage, BOOL bSil
 	
 	switch (HRESULT_CODE(hrStatus))
 	{
+	case 0:
+		if ((dwMode & mInstall) == mInstall)
+			message.LoadString(IDS_INSTALLED);
+		else if ((dwMode & mUninstall) == mUninstall)
+			message.LoadString(IDS_UNINSTALLED);
+		break;
 	case 1:
 		message.LoadString(IDS_ALREADY);
 		break;
 	case 5:	
-		if (bInstall)
+		if ((dwMode & mInstall) == mInstall)
 			message.LoadString(IDS_INSTALATION_INFO);
-		else
+		else if ((dwMode & mUninstall) == mUninstall)
 			message.LoadString(IDS_UNINSTALL_USAGE_INFO);
-		message.Replace(_T("%sudoWin%"), name);
+		else 
+			message.LoadString(IDS_UNKNOWN);
 		break;
 	default:
-		message.Format(IDS_UNKNOWN, hrStatus);
+		message.LoadString(IDS_UNKNOWN);
 		break;
 	}
-	Message(message);
+	if ((dwMode & mSilence) != mSilence)
+	{
+		if (FAILED(hrStatus))
+		{
+			CAtlString strError;
+			strError.Format(IDS_ERROR_MESSAGE, hrStatus, szMessage);
+			message += _T("\n"); 
+			message += strError;
+		}
+		message.Replace(_T("%sudoWin%"), name);
+		ShowMessage(message);
+	}
 	return HRESULT_CODE(hrStatus);
 }
 
