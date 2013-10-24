@@ -19,6 +19,7 @@
 
 #include <shellapi.h>
 #include <atlstr.h>
+#include <atlcoll.h>
 #include <Taskschd.h>
 #include <comutil.h>
 #include <iostream>

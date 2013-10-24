@@ -11,7 +11,7 @@ private:
 	CHandle	m_hKey;
 	LSTATUS m_stResult;
 	BOOL m_bIsWritable;
-	void CheckError();
+	void CheckError(LPCSTR szMessage = NULL);
 
 	void CheckReadPerissions();
 	void CheckWritePerissions();

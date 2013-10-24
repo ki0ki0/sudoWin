@@ -15,7 +15,7 @@
 #define TASK_NAME	_T("sudoWin")
 #endif
 
-#define TASK_EXECUTION_PARAMETER	_T("/execute")
+#define TASK_EXECUTION_PARAMETER	_T("execute")
 
 DWORD ProcessError(DWORD dwMode, HRESULT hrStatus, LPCSTR szMessage = NULL);
 void ShowMessage(LPCTSTR szMessage);
@@ -36,10 +36,10 @@ int APIENTRY _tWinMain(HINSTANCE /*hInstance*/,
 {
 	HRESULT hrStatus = S_OK;
 	CCmdLineParser cmdParser(lpCmdLine);
-	cmdParser.AddFlag(_T("/i"), mInstall);
-	cmdParser.AddFlag(_T("/u"), mUninstall);
+	cmdParser.AddFlag(_T("i"), mInstall);
+	cmdParser.AddFlag(_T("u"), mUninstall);
 	cmdParser.AddFlag(TASK_EXECUTION_PARAMETER, mRun);
-	DWORD dwMode = cmdParser.AddFlag(_T("/s"), mSilence);
+	DWORD dwMode = cmdParser.AddFlag(_T("s"), mSilence);
 
 	try
 	{
@@ -128,7 +128,8 @@ DWORD ProcessError(DWORD dwMode, HRESULT hrStatus, LPCSTR szMessage)
 			message += strError;
 		}
 		message.Replace(_T("%sudoWin%"), name);
-		ShowMessage(message);
+		if (message.IsEmpty() == false)
+			ShowMessage(message);
 	}
 	return HRESULT_CODE(hrStatus);
 }

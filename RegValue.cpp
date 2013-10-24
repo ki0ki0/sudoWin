@@ -4,11 +4,12 @@
 
 #include "win32_exception.h"
 
-void RegValue::CheckError()
+void RegValue::CheckError(LPCSTR szMessage)
 {
 	if (m_stResult != ERROR_SUCCESS)
 	{
-		throw win32_exception("Error while operating with register", m_stResult);
+		LPCSTR szMessageTmp = szMessage != NULL? szMessage: "Error while operating with register";
+		throw win32_exception(szMessageTmp, m_stResult);
 	}
 }
 
@@ -18,7 +19,7 @@ RegValue::RegValue(HKEY hkey, LPCTSTR lpSubKey, BOOL bIsWritable):
 	HKEY hKey;
 	m_stResult = ::RegCreateKeyEx(hkey, lpSubKey, 0, NULL, 0, 
 		m_bIsWritable? KEY_WRITE: KEY_READ, NULL, &hKey, NULL);
-	CheckError();	
+	CheckError("Can't open registry key");	
 	m_hKey.Attach(hKey);
 }
 
@@ -41,7 +42,7 @@ CAtlString RegValue::GetString(LPCTSTR lpValue)
 	DWORD dLen;
 	DWORD dwType;
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, NULL, &dLen);
-    CheckError();
+    CheckError("Can't query registry value");
 
 	if (dwType != REG_SZ)
 		throw std::runtime_error("Incompatible types");
@@ -49,7 +50,7 @@ CAtlString RegValue::GetString(LPCTSTR lpValue)
     CAtlString str;
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, NULL,
 		(LPBYTE)str.GetBuffer(dLen / sizeof(TCHAR) + 1), &dLen);
-    CheckError();
+    CheckError("Can't query registry value");
 
     str.ReleaseBuffer(dLen / sizeof(TCHAR));
 	str.ReleaseBuffer();
@@ -64,12 +65,12 @@ DWORD RegValue::GetDword(LPCTSTR lpValue)
 	DWORD dwVal;
 	DWORD dwLen;
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, NULL, &dwLen);
-	CheckError();
+	CheckError("Can't query registry value");
 
 	if ((dwType != REG_DWORD) || (dwLen != sizeof(dwVal)))
 		throw std::runtime_error("Incompatible types");
 	m_stResult = ::RegQueryValueEx( (HKEY)m_hKey.m_h, lpValue, 0, &dwType, (LPBYTE)&dwVal, &dwLen);
-	CheckError();
+	CheckError("Can't query registry value");
 	return dwVal;
 }
 
@@ -78,7 +79,7 @@ void RegValue::SetString(LPCTSTR lpValue, LPCTSTR lpText, DWORD dwLen)
 	CheckWritePerissions();
 
 	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, REG_SZ, (LPBYTE)lpText, dwLen * sizeof(lpText[0]));
-    CheckError();
+    CheckError("Can't set registry value");
 }
 
 void RegValue::SetDword(LPCTSTR lpValue, DWORD dwVal)
@@ -86,7 +87,7 @@ void RegValue::SetDword(LPCTSTR lpValue, DWORD dwVal)
 	CheckWritePerissions();
 
 	m_stResult = ::RegSetValueEx( (HKEY)m_hKey.m_h, lpValue, 0, REG_DWORD, (LPBYTE)&dwVal, sizeof(dwVal));
-    CheckError();
+    CheckError("Can't set registry value");
 }
 
 void RegValue::Delete(LPCTSTR lpValue)
@@ -94,5 +95,5 @@ void RegValue::Delete(LPCTSTR lpValue)
 	CheckWritePerissions();
 
 	m_stResult = ::RegDeleteValue( (HKEY)m_hKey.m_h, lpValue);
-    CheckError();
+    CheckError("Can't delete registry value");
 }

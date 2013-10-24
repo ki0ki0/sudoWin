@@ -26,6 +26,11 @@ public:
 	{	// construct from message string
 	}
 
+	explicit win32_exception(const char *_Message, DWORD dwCode)
+		: _Mybase(_Message? _Message: WIN32_DEFAULT_MESSAGE), m_hrStatus(HRESULT_FROM_WIN32(dwCode))
+	{	// construct from message string
+	}
+
 	HRESULT GetStatus()
 	{
 		return m_hrStatus;
